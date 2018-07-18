@@ -1,0 +1,140 @@
+classdef msg_${name}$ < MAVLinkMessage
+	%%MSG_${nameUpper}$: MAVLink Message ID = ${msgid}$
+    %%Description:
+    %%    ${desc}$
+    %%    Can also be constructed by using a MAVLinkPacket as the only argument
+	%%Arguments:
+    %%    ${firstFieldName}$(MAVLinkPacket): Alternative way to construct a message using a MAVLinkPacket
+#{orderedFields<#>    %%    ${name}$(${type}$?{${size}$>1<?>[${size}$]<?>}?): ${desc}$
+}#	
+	properties(Constant)
+		ID = ${msgid}$
+		LEN = ${msglen}$
+	end
+	
+	properties
+#{orderedFields<#>        ${name}$	%%${desc}$	|	(${type}$?{${size}$>1<?>[${size}$]<?>}?)\n}#    end
+
+    methods(Static)
+
+        function send(out,#{orderedFields<#>${name}$,}#varargin)
+
+            if nargin == ${numFields}$ + 1
+                msg = msg_${name}$(#{orderedFields<#>${name}$,}#varargin);
+            elseif nargin == 2
+                msg = msg_${name}$(${firstFieldName}$);
+            else
+                MAVLink.throwCustomError('The number of function arguments is not valid');
+                return;
+            end
+
+            packet = msg.pack();
+            if ~isempty(packet)
+                buffer = packet.encode();
+                write(out,buffer);
+            else
+                MAVLink.throwCustomError('The packet could not be verified');
+            end
+        
+        end
+
+    end
+
+    methods
+
+        function obj = msg_${name}$(#{orderedFields<#>${name}$,}#varargin)
+        %%MSG_${nameUpper}$: Create a new ${name}$ message object
+        
+            obj.msgid = obj.ID;
+            obj.sysid = MAVLink.SYSID;
+            obj.compid = MAVLink.COMPID;
+
+            if nargin == 1 
+                if isa(${firstFieldName}$,'MAVLinkPacket')
+                    packet = ${firstFieldName}$;
+                    obj.sysid = packet.sysid;
+                    obj.compid = packet.compid;
+                    obj.unpack(packet.payload);
+                else
+                    ?{${numFields}$==1<?>obj.${firstFieldName}$ = ${firstFieldName}$;<?>MAVLink.throwTypeError('${firstFieldName}$','MAVLinkPacket');}?
+                end
+?{${numFields}$==1<?><?>            elseif nargin >= ${numFields}$ && isempty(varargin{1})
+#{orderedFields<#>                obj.${name}$ = ${name}$;\n}#}?            elseif nargin ~= 0
+                MAVLink.throwCustomError('The number of constructer arguments is not valid');
+            end
+
+        end
+
+        function packet = pack(obj)
+        %%PACK: Packs this MAVLink message into a MAVLinkPacket
+        %%Description:
+        %%    Packs the fields of a message into a MAVLinkPacket which can be encoded
+        %%    for transmission.
+
+            errorField = obj.verify();
+            if errorField == 0
+
+                packet = MAVLinkPacket(msg_${name}$.LEN);
+                packet.sysid = MAVLink.SYSID;
+                packet.compid = MAVLink.COMPID;
+                packet.msgid = msg_${name}$.ID;
+                #{orderedFields<#>?{${size}$>1<?>
+                for i=1:1:${size}$
+                    packet.payload.put${typeUpper}$(obj.${name}$(i));
+                end<?>
+                packet.payload.put${typeUpper}$(obj.${name}$);}?}#
+
+            else
+                packet = [];
+                MAVLink.throwPackingError(errorField);
+            end
+
+        end
+
+        function unpack(obj, payload)
+        %%UNPACK: Unpacks a MAVLinkPayload into this MAVLink message
+        %%Description:
+        %%    Extracts the data from a MAVLinkPayload and attempts to store it in the fields
+        %%    of this message.
+        %%Arguments:
+        %%    payload(MAVLinkPayload): The payload to be unpacked into this MAVLink message
+
+            payload.resetIndex();
+            #{orderedFields<#>?{${size}$>1<?>
+            for i=1:1:${size}$
+                obj.${name}$(i) = payload.get${typeUpper}$();
+            end<?>
+            obj.${name}$ = payload.get${typeUpper}$();}?}#
+
+        end
+        
+        function result = verify(obj)
+        %%VERIFY: Determine whether all fields of this message are full
+        %%Description:
+        %%    Finds the first empty field in this message and returns its name. If there are no
+        %%    empty fields return 0.
+
+            if 1==0
+#{orderedFields<#>            elseif size(obj.${name}$,2) ~= ${size}$
+                result = '${name}$';
+}#
+            else
+                result = 0;
+            end
+        end
+#{orderedFields<#>?{strcmp('${type}$','double') || strcmp('${type}$','single')<?>
+        function set.${name}$(obj,value)
+            obj.${name}$ = ${type}$(value);
+        end
+        <?>
+        function set.${name}$(obj,value)
+            if value == ${type}$(value)
+                obj.${name}$ = ${type}$(value);
+            else
+                MAVLink.throwTypeError('value','${type}$');
+            end
+        end
+        }?}#
+    end
+
+end
